@@ -4,19 +4,16 @@ import './App.css';
 
 
 function App() {
-  const [userDataSource, setUserDataSource]=useState([])
   const [searchedText, setSearchedText]=useState('')
   const [dataSource, setDataSource]=useState([])
   const [loading,setLoading]=useState(false)
+  const [expandedRows, setExpandedRows] = useState([])
 
   const userColumns=[
-    {
+    { 
       title:'Name',
       dataIndex:'name',
-      filteredValue:[searchedText],
-      onFilter: (value, record)=>{
-        return record.name.toLowerCase().includes(value.toLowerCase())
-      }
+     
     },
     { 
       title:'Company',
@@ -26,7 +23,7 @@ function App() {
       title:'Location',
       dataIndex:'location'
     },
-    { 
+    {
       title:'Repositories',
       dataIndex:'public_repos',
     },
@@ -38,14 +35,19 @@ function App() {
    
   
   const columns=[
-    {
+    { 
       title:'Avatar',
       dataIndex:'avatar_url',
       render: theImageURL => <img alt={theImageURL} src={theImageURL} width={50}/>  // 
     },
     { 
       title:'Username',
-      dataIndex:'login'
+      dataIndex:'login',
+      filteredValue:[searchedText],
+      onFilter: (value, record)=>{
+        console.log(record)
+        return String(record.name).toLowerCase().includes(value.toLowerCase())
+      }
     },
     { 
       title:'Type',
@@ -55,7 +57,11 @@ function App() {
       title:'Options',
       dataIndex:'',
       render: (_, record) => (
-        <Button onClick={()=>{ fetchUser(record)}} >
+        <Button onClick={()=>{ 
+          const allKeys = dataSource.map((record) => record.id )
+          setExpandedRows(allKeys)
+
+          }} >
           {"Show more"}
         </Button>
        ),
@@ -65,21 +71,41 @@ function App() {
 
 
 
- function fetchUser (record) {      
-  fetch(`https://api.github.com/users/${record.login}`).then((res)=>{res.json().then((response)=>{
-    setUserDataSource(response)
-  })})
-} 
+const token = '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';
 
-const fetchUsers=()=>{
-    setLoading(true)
-    fetch('https://api.github.com/users').then((res)=>{res.json().then((response)=>{
-      setDataSource(response)
+
+const fetchUsers=async()=>{
+  setLoading(true)
+  
+ await fetch('https://api.github.com/users', {
+    headers: {
+      Authorization: `token ${token}`
+    }
+  }).then((res)=>{res.json().then((response)=>{
       setLoading(false)
+      const modified=[]
+      
+    for (let i=0; i<response.length; i++){
+    const c = async () => await fetch(`https://api.github.com/users/${response[i].login}`, {
+      headers: {
+        Authorization: `token ${token}`
+      }
+    }).then((res)=>{res.json().then((response)=>{
+      setLoading(false)
+      modified.push({...response, key:response.id})
+      setDataSource(modified)
     })})
-  }  
+        c()
+      }
+  })})} 
 
-useEffect(()=>{fetchUsers()},[])  
+useEffect(()=>{
+
+fetchUsers()
+  
+  },[])  
+
+
 
   return (
     <div className="App">
@@ -89,11 +115,22 @@ useEffect(()=>{fetchUsers()},[])
      loading={loading}
      columns={columns}
      dataSource={dataSource}
-     >
-       <Table 
+     expandable={{
+      expandedRowKeys:expandedRows,
+      expandIcon:null,
+      defaultExpandAllRows:false,
+      expandedRowRender:(record)=>{
+    return (<Table 
       columns={userColumns}
-      dataSource={userDataSource}
-      />
+      dataSource={record}//if you comment this row you will see the expanded empty table with tho column names
+      key={expandedRows}
+      rowKey={record.id}
+      />)
+      },
+
+     }}
+     >
+    
      </Table>
     </div>
   );
